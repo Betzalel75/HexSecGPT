@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+#!/usr/bin/env python3
+
 import os
 import sys
 import time
@@ -110,11 +112,11 @@ class Config:
     }
     
     # Change this if you want to use DeepSeek direct
-    API_PROVIDER = "openrouter" 
+    API_PROVIDER = "deepseek" 
     
     # System Paths
     ENV_FILE = ".HexSec"
-    API_KEY_NAME = "HexSecGPT-API"
+    API_KEY_NAME = "DEEPSEEK_API_KEY" #"HexSecGPT-API"
     
     # Visual Theme
     CODE_THEME = "monokai"
@@ -202,7 +204,8 @@ class UI:
                 
                 # Clean format for display
                 display_text = full_response.replace("[HexSecGPT]:", "").strip()
-                if not display_text: display_text = "..." 
+                if not display_text:
+                   display_text = "..." 
 
                 md = Markdown(display_text, code_theme=Config.CODE_THEME)
                 
@@ -291,29 +294,37 @@ Hacker Mode: ENGAGED.
         self.history = [{"role": "system", "content": self.SYSTEM_PROMPT}]
         
     def chat(self, user_input: str) -> Generator[str, None, None]:
-        self.history.append({"role": "user", "content": user_input})
-        
-        try:
-            stream = self.client.chat.completions.create(
-                model=self.model,
-                messages=self.history,
-                stream=True,
-                temperature=0.75
-            )
-            
-            full_content = ""
-            for chunk in stream:
-                content = chunk.choices[0].delta.content
-                if content:
-                    full_content += content
-                    yield content
-            
-            self.history.append({"role": "assistant", "content": full_content})
-            
-        except openai.AuthenticationError:
-            yield "Error: 401 Unauthorized. Check your API Key."
-        except Exception as e:
-            yield f"Error: Connection Terminated. Reason: {str(e)}"
+            self.history.append({"role": "user", "content": user_input})
+
+            try:
+                # Convert history to proper OpenAI message format
+                openai_messages = []
+                for msg in self.history:
+                    openai_messages.append({
+                        "role": msg["role"],
+                        "content": msg["content"]
+                    })
+
+                stream = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=openai_messages,
+                    stream=True,
+                    temperature=0.75
+                )
+
+                full_content = ""
+                for chunk in stream:
+                    content = chunk.choices[0].delta.content
+                    if content:
+                        full_content += content
+                        yield content
+
+                self.history.append({"role": "assistant", "content": full_content})
+
+            except openai.AuthenticationError:
+                yield "Error: 401 Unauthorized. Check your API Key."
+            except Exception as e:
+                yield f"Error: Connection Terminated. Reason: {str(e)}"
 
 # --- Main Application ---
 class App:
@@ -345,32 +356,35 @@ class App:
             return False
 
     def configure_key(self) -> bool:
-        self.ui.banner()
-        self.ui.console.print("[bold yellow]Enter your API Key (starts with sk-or-...):[/]")
-        try:
-            key = pwinput(prompt=f"{colorama.Fore.CYAN}Key > {colorama.Style.RESET_ALL}", mask="*")
-        except:
-            key = input("Key > ")
+            self.ui.banner()
+            self.ui.console.print("[bold yellow]Enter your API Key (starts with sk-or-...):[/]")
+            try:
+                key = pwinput(prompt=f"{colorama.Fore.CYAN}Key > {colorama.Style.RESET_ALL}", mask="*")
+            except Exception:
+                key = input("Key > ")
 
-        if not key.strip():
-            return False
-            
-        set_key(Config.ENV_FILE, Config.API_KEY_NAME, key.strip())
-        self.ui.show_msg("Success", "Key saved to encryption ring (.HexSec).", "green")
-        time.sleep(1)
-        return self.setup()
+            if not key.strip():
+                return False
+
+            set_key(Config.ENV_FILE, Config.API_KEY_NAME, key.strip())
+            self.ui.show_msg("Success", "Key saved to encryption ring (.HexSec).", "green")
+            time.sleep(1)
+            return self.setup()
 
     def run_chat(self):
-        if not self.brain: return
+        if not self.brain:
+           return
         self.ui.banner()
         self.ui.show_msg("Connected", "HexSecGPT Uplink Established. Type '/help' for commands.", "green")
         
         while True:
             try:
                 prompt = self.ui.get_input("HexSec-GPT")
-                if not prompt.strip(): continue
+                if not prompt.strip():
+                    continue
                 
-                if prompt.lower() == '/exit': return
+                if prompt.lower() == '/exit':
+                    return
                 if prompt.lower() == '/new': 
                     self.brain.reset()
                     self.ui.clear()

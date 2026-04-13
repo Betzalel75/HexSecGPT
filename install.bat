@@ -32,7 +32,7 @@ if exist "HexSecGPT" (
     echo [!] HexSecGPT directory already exists. Skipping clone.
 ) else (
     echo [+] Cloning HexSecGPT repository...
-    git clone https://github.com/hexsecteam/HexSecGPT.git
+    git clone https://github.com/Betzalel75/HexSecGPT.git
 )
 
 cd HexSecGPT
